@@ -97,9 +97,17 @@ impl TuiRatatuiDisplay {
                     (KeyCode::Esc, KeyEventKind::Press) => {
                         self.should_close = true;
                     }
-                    (KeyCode::Char(' '), KeyEventKind::Press) => {
-                        self.pause = !self.pause;
-                    }
+                    (KeyCode::Char(' '), KeyEventKind::Press) => match self.current_area {
+                        Area::Timer => {
+                            self.pause = !self.pause;
+                        }
+                        Area::TasksNotCompleted => {}
+                        Area::TasksCompleted => {}
+                    },
+                    // TODO: Add cursor move features
+                    // TODO: Add task add feature
+                    // TODO: Add task update completed status feature
+                    // TODO: Add task remove feature
                     _ => {}
                 }
             }
