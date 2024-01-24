@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use frontend::terminal::TerminalDisplay;
+use frontend::{terminal::TerminalDisplay, tui_ratatui::TuiRatatuiDisplay};
 
 use crate::backend::{Pomodoro, Task};
 
@@ -12,14 +12,22 @@ fn main() {
 
     pomodoro.task_add(Task::new("Ler cap. de AM", "Ler capítulo 2 de AM."));
     pomodoro.task_add(Task::new(
+        "Ler artigo",
+        "Reler do Hinton, sobre destilamento de conhecimento.",
+    ));
+    pomodoro.task_add(Task::new(
         "Estudar Hacking",
         "Fazer aulas do curso de hacker ético.",
     ));
 
-    pomodoro.task_complete(0);
     pomodoro.task_add(Task::new("Ler cap. de AM", "Ler capítulo 2 de AM."));
 
-    let mut terminal = TerminalDisplay::new(pomodoro);
+    pomodoro.task_complete(0);
+    pomodoro.task_complete(3);
 
-    terminal.pomo_loop();
+    // let mut terminal = TerminalDisplay::new(pomodoro);
+    // terminal.pomo_loop();
+
+    let mut tui = TuiRatatuiDisplay::new(pomodoro).expect("Failt to create TUI");
+    tui.pomo_loop().expect("Not fail!");
 }

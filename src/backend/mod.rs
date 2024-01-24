@@ -7,6 +7,7 @@ pub struct Pomodoro {
     timer: TimerType,
 }
 
+#[derive(Copy, Clone)]
 pub enum TimerType {
     Focus,
     Rest,
@@ -45,6 +46,10 @@ impl Pomodoro {
         }
     }
 
+    pub fn get_mode(&self) -> TimerType {
+        self.timer
+    }
+
     pub fn task_add(&mut self, new_task: Task) {
         self.tasks.push(new_task);
     }
@@ -78,12 +83,17 @@ impl Pomodoro {
             TimerType::Rest => String::from("Rest"),
         };
 
+        let timer_string = self.timer_to_string();
+        format!("{timer_type}: \n\t {timer_string}")
+    }
+
+    pub fn timer_to_string(&self) -> String {
         let duration = self.get_current_duration();
 
         let secs = duration.as_secs() % 60;
         let mins = (duration.as_secs_f32() - (secs as f32)) / 60f32;
 
-        format!("{timer_type}: \n\t {:02}:{:02}", mins, secs)
+        format!("{:02}:{:02}", mins, secs)
     }
 
     fn get_current_duration(&self) -> Duration {
