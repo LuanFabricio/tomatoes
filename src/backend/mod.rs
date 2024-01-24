@@ -28,7 +28,7 @@ impl Pomodoro {
                 self.focus.current_time -= Duration::from_secs(1);
 
                 if self.focus.current_time == Duration::ZERO {
-                    self.timer = TimerType::Focus;
+                    self.timer = TimerType::Rest;
                     self.focus.current_time = self.focus.initial_time
                 }
                 self.focus.current_time
@@ -83,7 +83,7 @@ impl Pomodoro {
         let secs = duration.as_secs() % 60;
         let mins = (duration.as_secs_f32() - (secs as f32)) / 60f32;
 
-        format!("{timer_type}: \n\t {mins}:{:02}", secs)
+        format!("{timer_type}: \n\t {:02}:{:02}", mins, secs)
     }
 
     fn get_current_duration(&self) -> Duration {
