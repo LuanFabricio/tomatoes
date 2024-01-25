@@ -10,7 +10,7 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    layout::Rect,
+    style::Stylize,
     widgets::{Block, Borders, Paragraph},
     Terminal,
 };
@@ -31,6 +31,7 @@ pub struct TuiRatatuiDisplay {
     current_area: Area,
     selected_row: usize,
     pause: bool,
+    space_timeout: SystemTime,
 }
 
 impl TuiRatatuiDisplay {
@@ -43,6 +44,7 @@ impl TuiRatatuiDisplay {
             pause: false,
             current_area: Area::Timer,
             selected_row: 0,
+            space_timeout: SystemTime::now(),
         })
     }
 
@@ -52,16 +54,19 @@ impl TuiRatatuiDisplay {
             TimerType::Rest => "Rest",
         };
 
+        // TODO: Refactor
         self.terminal.draw(|frame| {
             let frame_area = frame.size();
             let mut timer_area = frame_area.clone();
             timer_area.height = (timer_area.height >> 1) - 15;
 
-            frame.render_widget(
-                Paragraph::new(self.pomodoro.timer_to_string())
-                    .block(Block::default().title(pomo_mode).borders(Borders::ALL)),
-                timer_area,
-            );
+            let mut timer_widget = Paragraph::new(self.pomodoro.timer_to_string())
+                .block(Block::default().title(pomo_mode).borders(Borders::ALL));
+
+            if self.current_area == Area::Timer {
+                timer_widget = timer_widget.blue();
+            }
+            frame.render_widget(timer_widget, timer_area);
 
             let not_completed_tasks = self.pomodoro.task_get_by_complete(false);
             let mut not_completed_tasks_string = String::new();
@@ -79,11 +84,14 @@ impl TuiRatatuiDisplay {
 
             let mut task_area = timer_area.clone();
             task_area.y = timer_area.y + timer_area.height;
-            frame.render_widget(
-                Paragraph::new(not_completed_tasks_string)
-                    .block(Block::default().title("TODO:").borders(Borders::ALL)),
-                task_area,
-            );
+            let mut task_widget = Paragraph::new(not_completed_tasks_string)
+                .block(Block::default().title("TODO:").borders(Borders::ALL));
+
+            if self.current_area == Area::TasksNotCompleted {
+                task_widget = task_widget.blue();
+            }
+
+            frame.render_widget(task_widget, task_area);
 
             let completed_tasks = self.pomodoro.task_get_by_complete(true);
             let mut completed_tasks_string = String::new();
@@ -101,11 +109,15 @@ impl TuiRatatuiDisplay {
 
             let mut done_task_area = task_area.clone();
             done_task_area.y = task_area.y + task_area.height;
-            frame.render_widget(
-                Paragraph::new(completed_tasks_string)
-                    .block(Block::default().title("DONE:").borders(Borders::ALL)),
-                done_task_area,
-            );
+
+            let mut completed_tasks_widget = Paragraph::new(completed_tasks_string)
+                .block(Block::default().title("DONE:").borders(Borders::ALL));
+
+            if self.current_area == Area::TasksCompleted {
+                completed_tasks_widget = completed_tasks_widget.blue();
+            }
+
+            frame.render_widget(completed_tasks_widget, done_task_area);
         })?;
 
         Ok(())
@@ -118,8 +130,6 @@ impl TuiRatatuiDisplay {
         let mut next_count = SystemTime::now();
         let one_sec = Duration::from_secs(1);
         while !self.should_close {
-            self.handle_events()?;
-
             while next_count.elapsed().unwrap() <= one_sec {
                 self.handle_events()?;
                 if self.should_close {
@@ -132,6 +142,8 @@ impl TuiRatatuiDisplay {
                 let _ = self.display();
                 self.pomodoro.foward();
             }
+
+            self.handle_events()?;
         }
 
         disable_raw_mode()?;
@@ -141,23 +153,32 @@ impl TuiRatatuiDisplay {
     }
 
     pub fn handle_events(&mut self) -> io::Result<()> {
-        if event::poll(Duration::from_millis(1))? {
+        if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 match (key.code, key.kind) {
                     (KeyCode::Esc, KeyEventKind::Press) => {
                         self.should_close = true;
                     }
-                    (KeyCode::Char(' '), KeyEventKind::Press) => match self.current_area {
-                        Area::Timer => {
-                            self.pause = !self.pause;
+                    (KeyCode::Char(' '), KeyEventKind::Press) => {
+                        const SPACE_DELAY: Duration = Duration::from_secs(2);
+                        if let Ok(time_elapsed) = self.space_timeout.elapsed() {
+                            if time_elapsed < SPACE_DELAY {
+                                self.space_timeout = SystemTime::now();
+                                return Ok(());
+                            }
                         }
-                        Area::TasksNotCompleted => {
-                            self.pomodoro.task_complete(self.selected_row);
+                        match self.current_area {
+                            Area::Timer => {
+                                self.pause = !self.pause;
+                            }
+                            Area::TasksNotCompleted => {
+                                self.pomodoro.task_complete(self.selected_row);
+                            }
+                            Area::TasksCompleted => {
+                                self.pomodoro.task_not_complete(self.selected_row);
+                            }
                         }
-                        Area::TasksCompleted => {
-                            self.pomodoro.task_not_complete(self.selected_row);
-                        }
-                    },
+                    }
                     (KeyCode::Down, KeyEventKind::Press) => match self.current_area {
                         Area::Timer => self.current_area = Area::TasksNotCompleted,
                         Area::TasksNotCompleted => {
