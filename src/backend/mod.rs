@@ -59,9 +59,19 @@ impl Pomodoro {
     }
 
     pub fn task_complete(&mut self, task_index: usize) {
-        for (i, task) in self.tasks.iter_mut().enumerate() {
+        for (i, task) in self.tasks.iter_mut().filter(|x| !x.completed).enumerate() {
             if i == task_index {
                 task.completed = true;
+                break;
+            }
+        }
+    }
+
+    pub fn task_not_complete(&mut self, task_index: usize) {
+        for (i, task) in self.tasks.iter_mut().filter(|x| x.completed).enumerate() {
+            if i == task_index {
+                task.completed = false;
+                break;
             }
         }
     }
