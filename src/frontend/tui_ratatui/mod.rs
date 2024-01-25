@@ -10,13 +10,14 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    style::Stylize,
+    layout::Rect,
     widgets::{Block, Borders, Paragraph},
     Terminal,
 };
 
 use crate::backend::{Pomodoro, TimerType};
 
+#[derive(Debug, PartialEq, Eq)]
 enum Area {
     Timer,
     TasksNotCompleted,
@@ -52,12 +53,61 @@ impl TuiRatatuiDisplay {
         };
 
         self.terminal.draw(|frame| {
+            let frame_area = frame.size();
+            let mut timer_area = frame_area.clone();
+            timer_area.height = (timer_area.height >> 1) - 15;
+
             frame.render_widget(
                 Paragraph::new(self.pomodoro.timer_to_string())
                     .block(Block::default().title(pomo_mode).borders(Borders::ALL)),
-                frame.size(),
+                timer_area,
+            );
+
+            let not_completed_tasks = self.pomodoro.task_get_by_complete(false);
+            let mut not_completed_tasks_string = String::new();
+
+            for (i, task) in not_completed_tasks.iter().enumerate() {
+                if self.current_area == Area::TasksNotCompleted && i == self.selected_row {
+                    not_completed_tasks_string +=
+                        format!("[*] {}: {}", task.name, task.description).as_str();
+                } else {
+                    not_completed_tasks_string +=
+                        format!("[ ] {}: {}", task.name, task.description).as_str();
+                }
+                not_completed_tasks_string += "\n";
+            }
+
+            let mut task_area = timer_area.clone();
+            task_area.y = timer_area.y + timer_area.height;
+            frame.render_widget(
+                Paragraph::new(not_completed_tasks_string)
+                    .block(Block::default().title("TODO:").borders(Borders::ALL)),
+                task_area,
+            );
+
+            let completed_tasks = self.pomodoro.task_get_by_complete(true);
+            let mut completed_tasks_string = String::new();
+
+            for (i, task) in completed_tasks.iter().enumerate() {
+                if self.current_area == Area::TasksCompleted && i == self.selected_row {
+                    completed_tasks_string +=
+                        format!("[*] {}: {}", task.name, task.description).as_str();
+                } else {
+                    completed_tasks_string +=
+                        format!("[x] {}: {}", task.name, task.description).as_str();
+                }
+                completed_tasks_string += "\n";
+            }
+
+            let mut done_task_area = task_area.clone();
+            done_task_area.y = task_area.y + task_area.height;
+            frame.render_widget(
+                Paragraph::new(completed_tasks_string)
+                    .block(Block::default().title("DONE:").borders(Borders::ALL)),
+                done_task_area,
             );
         })?;
+
         Ok(())
     }
 
@@ -91,7 +141,7 @@ impl TuiRatatuiDisplay {
     }
 
     pub fn handle_events(&mut self) -> io::Result<()> {
-        if event::poll(Duration::from_millis(50))? {
+        if event::poll(Duration::from_millis(1))? {
             if let Event::Key(key) = event::read()? {
                 match (key.code, key.kind) {
                     (KeyCode::Esc, KeyEventKind::Press) => {
@@ -101,10 +151,60 @@ impl TuiRatatuiDisplay {
                         Area::Timer => {
                             self.pause = !self.pause;
                         }
-                        Area::TasksNotCompleted => {}
-                        Area::TasksCompleted => {}
+                        Area::TasksNotCompleted => {
+                            self.pomodoro.task_complete(self.selected_row);
+                        }
+                        Area::TasksCompleted => {
+                            self.pomodoro.task_not_complete(self.selected_row);
+                        }
                     },
-                    // TODO: Add cursor move features
+                    (KeyCode::Down, KeyEventKind::Press) => match self.current_area {
+                        Area::Timer => self.current_area = Area::TasksNotCompleted,
+                        Area::TasksNotCompleted => {
+                            if self.selected_row + 1
+                                < self.pomodoro.task_get_by_complete(false).len()
+                            {
+                                self.selected_row += 1;
+                            } else {
+                                self.current_area = Area::TasksCompleted;
+                                self.selected_row = 0;
+                            }
+                        }
+                        Area::TasksCompleted => {
+                            if self.selected_row + 1
+                                < self.pomodoro.task_get_by_complete(true).len()
+                            {
+                                self.selected_row += 1;
+                            } else {
+                                self.current_area = Area::Timer;
+                                self.selected_row = 0;
+                            }
+                        }
+                    },
+                    (KeyCode::Up, KeyEventKind::Press) => match self.current_area {
+                        Area::Timer => {
+                            self.current_area = Area::TasksCompleted;
+                            self.selected_row =
+                                (self.pomodoro.task_get_by_complete(true).len() - 1).max(0);
+                        }
+                        Area::TasksNotCompleted => {
+                            if self.selected_row > 0 {
+                                self.selected_row -= 1;
+                            } else {
+                                self.current_area = Area::Timer;
+                                self.selected_row = 0;
+                            }
+                        }
+                        Area::TasksCompleted => {
+                            if self.selected_row > 0 {
+                                self.selected_row -= 1;
+                            } else {
+                                self.current_area = Area::TasksNotCompleted;
+                                self.selected_row =
+                                    (self.pomodoro.task_get_by_complete(false).len() - 1).max(0);
+                            }
+                        }
+                    },
                     // TODO: Add task add feature
                     // TODO: Add task update completed status feature
                     // TODO: Add task remove feature
