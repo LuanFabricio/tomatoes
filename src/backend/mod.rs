@@ -184,6 +184,18 @@ impl Task {
             completed: false,
         }
     }
+
+    pub fn from_str(s: &str) -> Self {
+        let split: Vec<&str> = s.split(':').collect();
+        let name = split[0].trim();
+        let description = split.get(1).unwrap_or(&"").trim();
+
+        Self {
+            name: name.into(),
+            description: description.to_string(),
+            completed: false,
+        }
+    }
 }
 
 impl std::fmt::Display for Task {
