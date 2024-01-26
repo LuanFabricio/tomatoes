@@ -28,6 +28,6 @@ fn main() {
     let res = pomodoro.save();
 
     println!("Res: {res:?}");
-    // let mut tui = TuiRatatuiDisplay::new(pomodoro).expect("Failt to create TUI");
-    // tui.pomo_loop().expect("Not fail!");
+    let mut tui = TuiRatatuiDisplay::new(pomodoro).expect("Failt to create TUI");
+    tui.pomo_loop().expect("Not fail!");
 }
