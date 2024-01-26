@@ -1,6 +1,5 @@
 use std::{
     io::{self, stdout, Stdout},
-    process::exit,
     time::{Duration, SystemTime},
 };
 
@@ -12,7 +11,7 @@ use crossterm::{
 use ratatui::{
     backend::CrosstermBackend,
     style::Stylize,
-    widgets::{canvas::Rectangle, Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph},
     Terminal,
 };
 
@@ -53,73 +52,23 @@ impl TuiRatatuiDisplay {
     }
 
     pub fn display(&mut self) -> io::Result<()> {
-        let pomo_mode = match self.pomodoro.get_mode() {
-            TimerType::Focus => "Focus",
-            TimerType::Rest => "Rest",
-        };
-
         // Timer
-        let mut timer_widget = Paragraph::new(self.pomodoro.timer_to_string())
-            .block(Block::default().title(pomo_mode).borders(Borders::ALL));
-
-        if self.current_area == Area::Timer {
-            timer_widget = timer_widget.blue();
-        }
+        let timer_widget = Self::create_timer_widget(&self.pomodoro, &self.current_area);
 
         // Completed tasks
-        let not_completed_tasks = self.pomodoro.task_get_by_complete(false);
-        let mut not_completed_tasks_string = String::new();
-
-        for (i, task) in not_completed_tasks.iter().enumerate() {
-            if self.current_area == Area::TasksNotCompleted && i == self.selected_row {
-                not_completed_tasks_string +=
-                    format!("[*] {}: {}", task.name, task.description).as_str();
-            } else {
-                not_completed_tasks_string +=
-                    format!("[ ] {}: {}", task.name, task.description).as_str();
-            }
-            not_completed_tasks_string += "\n";
-        }
-
-        let mut task_widget = Paragraph::new(not_completed_tasks_string)
-            .block(Block::default().title("TODO:").borders(Borders::ALL));
-
-        if self.current_area == Area::TasksNotCompleted {
-            task_widget = task_widget.blue();
-        }
+        let not_completed_widget = Self::create_not_completed_widget(
+            &self.pomodoro,
+            &self.current_area,
+            self.selected_row,
+        );
 
         // Completed tasks
-        let completed_tasks = self.pomodoro.task_get_by_complete(true);
-        let mut completed_tasks_string = String::new();
+        let completed_widget =
+            Self::create_completed_widget(&self.pomodoro, &self.current_area, self.selected_row);
 
-        for (i, task) in completed_tasks.iter().enumerate() {
-            if self.current_area == Area::TasksCompleted && i == self.selected_row {
-                completed_tasks_string +=
-                    format!("[*] {}: {}", task.name, task.description).as_str();
-            } else {
-                completed_tasks_string +=
-                    format!("[x] {}: {}", task.name, task.description).as_str();
-            }
-            completed_tasks_string += "\n";
-        }
+        let task_add_widget =
+            Self::create_add_task(&self.current_area, self.new_task_buffer.clone());
 
-        let mut completed_tasks_widget = Paragraph::new(completed_tasks_string)
-            .block(Block::default().title("DONE:").borders(Borders::ALL));
-
-        if self.current_area == Area::TasksCompleted {
-            completed_tasks_widget = completed_tasks_widget.blue();
-        }
-
-        let task_add_widget = if self.current_area == Area::TaskAdd {
-            let widget = Paragraph::new(self.new_task_buffer.clone())
-                .block(Block::default().title("Task add").borders(Borders::ALL))
-                .blue();
-            Some(widget)
-        } else {
-            None
-        };
-
-        // TODO: Refactor
         self.terminal.draw(|frame| {
             let frame_area = frame.size();
             let mut timer_area = frame_area.clone();
@@ -128,12 +77,12 @@ impl TuiRatatuiDisplay {
 
             let mut task_area = timer_area.clone();
             task_area.y = timer_area.y + timer_area.height;
-            frame.render_widget(task_widget, task_area);
+            frame.render_widget(not_completed_widget, task_area);
 
             let mut done_task_area = task_area.clone();
             done_task_area.y = task_area.y + task_area.height;
 
-            frame.render_widget(completed_tasks_widget, done_task_area);
+            frame.render_widget(completed_widget, done_task_area);
 
             if let Some(task_add_widget) = task_add_widget {
                 let mut task_add_area = done_task_area.clone();
@@ -145,6 +94,91 @@ impl TuiRatatuiDisplay {
         })?;
 
         Ok(())
+    }
+
+    fn create_timer_widget<'a>(pomodoro: &'a Pomodoro, current_area: &'a Area) -> Paragraph<'a> {
+        let pomo_mode = match pomodoro.get_mode() {
+            TimerType::Focus => "Focus",
+            TimerType::Rest => "Rest",
+        };
+
+        let mut widget = Paragraph::new(pomodoro.timer_to_string())
+            .block(Block::default().title(pomo_mode).borders(Borders::ALL));
+        if *current_area == Area::Timer {
+            widget = widget.blue();
+        }
+
+        widget
+    }
+
+    fn create_not_completed_widget<'a>(
+        pomodoro: &'a Pomodoro,
+        current_area: &'a Area,
+        selected_row: usize,
+    ) -> Paragraph<'a> {
+        let not_completed_tasks = pomodoro.task_get_by_complete(false);
+        let mut not_completed_tasks_string = String::new();
+
+        for (i, task) in not_completed_tasks.iter().enumerate() {
+            if *current_area == Area::TasksNotCompleted && i == selected_row {
+                not_completed_tasks_string +=
+                    format!("[*] {}: {}", task.name, task.description).as_str();
+            } else {
+                not_completed_tasks_string +=
+                    format!("[ ] {}: {}", task.name, task.description).as_str();
+            }
+            not_completed_tasks_string += "\n";
+        }
+
+        let mut task_widget = Paragraph::new(not_completed_tasks_string)
+            .block(Block::default().title("TODO:").borders(Borders::ALL));
+        if *current_area == Area::TasksNotCompleted {
+            task_widget = task_widget.blue();
+        }
+
+        task_widget
+    }
+
+    fn create_completed_widget<'a>(
+        pomodoro: &'a Pomodoro,
+        current_area: &'a Area,
+        selected_row: usize,
+    ) -> Paragraph<'a> {
+        let completed_tasks = pomodoro.task_get_by_complete(true);
+        let mut completed_tasks_string = String::new();
+
+        for (i, task) in completed_tasks.iter().enumerate() {
+            if *current_area == Area::TasksCompleted && i == selected_row {
+                completed_tasks_string +=
+                    format!("[*] {}: {}", task.name, task.description).as_str();
+            } else {
+                completed_tasks_string +=
+                    format!("[x] {}: {}", task.name, task.description).as_str();
+            }
+            completed_tasks_string += "\n";
+        }
+
+        let mut widget = Paragraph::new(completed_tasks_string)
+            .block(Block::default().title("DONE:").borders(Borders::ALL));
+
+        if *current_area == Area::TasksCompleted {
+            widget = widget.blue();
+        }
+
+        widget
+    }
+
+    fn create_add_task<'a>(
+        current_area: &'a Area,
+        new_task_buffer: String,
+    ) -> Option<Paragraph<'a>> {
+        if *current_area == Area::TaskAdd {
+            let widget = Paragraph::new(new_task_buffer)
+                .block(Block::default().title("Task add").borders(Borders::ALL))
+                .blue();
+            return Some(widget);
+        }
+        None
     }
 
     pub fn pomo_loop(&mut self) -> io::Result<()> {
@@ -277,7 +311,6 @@ impl TuiRatatuiDisplay {
                         }
                         _ => {}
                     },
-                    // TODO: Add task add feature
                     // TODO: Add task remove feature
                     _ => {}
                 }
