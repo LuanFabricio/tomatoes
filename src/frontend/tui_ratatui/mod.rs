@@ -1,5 +1,6 @@
 use std::{
     io::{self, stdout, Stdout},
+    process::exit,
     time::{Duration, SystemTime},
 };
 
@@ -11,17 +12,18 @@ use crossterm::{
 use ratatui::{
     backend::CrosstermBackend,
     style::Stylize,
-    widgets::{Block, Borders, Paragraph},
+    widgets::{canvas::Rectangle, Block, Borders, Paragraph},
     Terminal,
 };
 
-use crate::backend::{Pomodoro, TimerType};
+use crate::backend::{Pomodoro, Task, TimerType};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Area {
     Timer,
     TasksNotCompleted,
     TasksCompleted,
+    TaskAdd,
 }
 
 pub struct TuiRatatuiDisplay {
@@ -32,6 +34,7 @@ pub struct TuiRatatuiDisplay {
     selected_row: usize,
     pause: bool,
     space_timeout: SystemTime,
+    new_task_buffer: String,
 }
 
 impl TuiRatatuiDisplay {
@@ -45,6 +48,7 @@ impl TuiRatatuiDisplay {
             current_area: Area::Timer,
             selected_row: 0,
             space_timeout: SystemTime::now(),
+            new_task_buffer: String::new(),
         })
     }
 
@@ -118,6 +122,18 @@ impl TuiRatatuiDisplay {
             }
 
             frame.render_widget(completed_tasks_widget, done_task_area);
+
+            if self.current_area == Area::TaskAdd {
+                let mut task_add_area = done_task_area.clone();
+                task_add_area.height /= 2;
+                task_add_area.y = done_task_area.y + done_task_area.height;
+
+                let task_add_widget = Paragraph::new(self.new_task_buffer.clone())
+                    .block(Block::default().title("Task add").borders(Borders::ALL))
+                    .blue();
+
+                frame.render_widget(task_add_widget, task_add_area);
+            }
         })?;
 
         Ok(())
@@ -149,11 +165,13 @@ impl TuiRatatuiDisplay {
         disable_raw_mode()?;
         let _ = stdout().execute(LeaveAlternateScreen)?;
 
+        let _ = self.pomodoro.save();
+
         Ok(())
     }
 
     pub fn handle_events(&mut self) -> io::Result<()> {
-        if event::poll(Duration::from_millis(50))? {
+        if event::poll(Duration::from_secs_f64(1f64 / 60f64))? {
             if let Event::Key(key) = event::read()? {
                 match (key.code, key.kind) {
                     (KeyCode::Esc, KeyEventKind::Press) => {
@@ -176,6 +194,9 @@ impl TuiRatatuiDisplay {
                             }
                             Area::TasksCompleted => {
                                 self.pomodoro.task_not_complete(self.selected_row);
+                            }
+                            _ => {
+                                self.new_task_buffer += " ";
                             }
                         }
                     }
@@ -201,6 +222,7 @@ impl TuiRatatuiDisplay {
                                 self.selected_row = 0;
                             }
                         }
+                        _ => {}
                     },
                     (KeyCode::Up, KeyEventKind::Press) => match self.current_area {
                         Area::Timer => {
@@ -225,9 +247,36 @@ impl TuiRatatuiDisplay {
                                     (self.pomodoro.task_get_by_complete(false).len() - 1).max(0);
                             }
                         }
+                        _ => {}
+                    },
+                    (KeyCode::Char('+'), KeyEventKind::Press) => match self.current_area {
+                        Area::TaskAdd => {}
+                        _ => self.current_area = Area::TaskAdd,
+                    },
+                    (KeyCode::Char(c), KeyEventKind::Press) => match self.current_area {
+                        Area::TaskAdd => {
+                            self.new_task_buffer += c.to_string().as_str();
+                        }
+                        _ => {}
+                    },
+                    (KeyCode::Enter, KeyEventKind::Press) => match self.current_area {
+                        Area::TaskAdd => {
+                            let new_task = Task::from_str(self.new_task_buffer.as_str());
+                            self.pomodoro.task_add(new_task);
+
+                            self.new_task_buffer = String::new();
+                            self.current_area = Area::Timer;
+                        }
+                        _ => {}
+                    },
+                    (KeyCode::Backspace, KeyEventKind::Press) => match self.current_area {
+                        Area::TaskAdd => {
+                            let last_index = (self.new_task_buffer.len() - 1).max(0);
+                            self.new_task_buffer.remove(last_index);
+                        }
+                        _ => {}
                     },
                     // TODO: Add task add feature
-                    // TODO: Add task update completed status feature
                     // TODO: Add task remove feature
                     _ => {}
                 }
