@@ -58,79 +58,87 @@ impl TuiRatatuiDisplay {
             TimerType::Rest => "Rest",
         };
 
+        // Timer
+        let mut timer_widget = Paragraph::new(self.pomodoro.timer_to_string())
+            .block(Block::default().title(pomo_mode).borders(Borders::ALL));
+
+        if self.current_area == Area::Timer {
+            timer_widget = timer_widget.blue();
+        }
+
+        // Completed tasks
+        let not_completed_tasks = self.pomodoro.task_get_by_complete(false);
+        let mut not_completed_tasks_string = String::new();
+
+        for (i, task) in not_completed_tasks.iter().enumerate() {
+            if self.current_area == Area::TasksNotCompleted && i == self.selected_row {
+                not_completed_tasks_string +=
+                    format!("[*] {}: {}", task.name, task.description).as_str();
+            } else {
+                not_completed_tasks_string +=
+                    format!("[ ] {}: {}", task.name, task.description).as_str();
+            }
+            not_completed_tasks_string += "\n";
+        }
+
+        let mut task_widget = Paragraph::new(not_completed_tasks_string)
+            .block(Block::default().title("TODO:").borders(Borders::ALL));
+
+        if self.current_area == Area::TasksNotCompleted {
+            task_widget = task_widget.blue();
+        }
+
+        // Completed tasks
+        let completed_tasks = self.pomodoro.task_get_by_complete(true);
+        let mut completed_tasks_string = String::new();
+
+        for (i, task) in completed_tasks.iter().enumerate() {
+            if self.current_area == Area::TasksCompleted && i == self.selected_row {
+                completed_tasks_string +=
+                    format!("[*] {}: {}", task.name, task.description).as_str();
+            } else {
+                completed_tasks_string +=
+                    format!("[x] {}: {}", task.name, task.description).as_str();
+            }
+            completed_tasks_string += "\n";
+        }
+
+        let mut completed_tasks_widget = Paragraph::new(completed_tasks_string)
+            .block(Block::default().title("DONE:").borders(Borders::ALL));
+
+        if self.current_area == Area::TasksCompleted {
+            completed_tasks_widget = completed_tasks_widget.blue();
+        }
+
+        let task_add_widget = if self.current_area == Area::TaskAdd {
+            let widget = Paragraph::new(self.new_task_buffer.clone())
+                .block(Block::default().title("Task add").borders(Borders::ALL))
+                .blue();
+            Some(widget)
+        } else {
+            None
+        };
+
         // TODO: Refactor
         self.terminal.draw(|frame| {
             let frame_area = frame.size();
             let mut timer_area = frame_area.clone();
             timer_area.height = (timer_area.height >> 1) - 15;
-
-            let mut timer_widget = Paragraph::new(self.pomodoro.timer_to_string())
-                .block(Block::default().title(pomo_mode).borders(Borders::ALL));
-
-            if self.current_area == Area::Timer {
-                timer_widget = timer_widget.blue();
-            }
             frame.render_widget(timer_widget, timer_area);
-
-            let not_completed_tasks = self.pomodoro.task_get_by_complete(false);
-            let mut not_completed_tasks_string = String::new();
-
-            for (i, task) in not_completed_tasks.iter().enumerate() {
-                if self.current_area == Area::TasksNotCompleted && i == self.selected_row {
-                    not_completed_tasks_string +=
-                        format!("[*] {}: {}", task.name, task.description).as_str();
-                } else {
-                    not_completed_tasks_string +=
-                        format!("[ ] {}: {}", task.name, task.description).as_str();
-                }
-                not_completed_tasks_string += "\n";
-            }
 
             let mut task_area = timer_area.clone();
             task_area.y = timer_area.y + timer_area.height;
-            let mut task_widget = Paragraph::new(not_completed_tasks_string)
-                .block(Block::default().title("TODO:").borders(Borders::ALL));
-
-            if self.current_area == Area::TasksNotCompleted {
-                task_widget = task_widget.blue();
-            }
-
             frame.render_widget(task_widget, task_area);
-
-            let completed_tasks = self.pomodoro.task_get_by_complete(true);
-            let mut completed_tasks_string = String::new();
-
-            for (i, task) in completed_tasks.iter().enumerate() {
-                if self.current_area == Area::TasksCompleted && i == self.selected_row {
-                    completed_tasks_string +=
-                        format!("[*] {}: {}", task.name, task.description).as_str();
-                } else {
-                    completed_tasks_string +=
-                        format!("[x] {}: {}", task.name, task.description).as_str();
-                }
-                completed_tasks_string += "\n";
-            }
 
             let mut done_task_area = task_area.clone();
             done_task_area.y = task_area.y + task_area.height;
 
-            let mut completed_tasks_widget = Paragraph::new(completed_tasks_string)
-                .block(Block::default().title("DONE:").borders(Borders::ALL));
-
-            if self.current_area == Area::TasksCompleted {
-                completed_tasks_widget = completed_tasks_widget.blue();
-            }
-
             frame.render_widget(completed_tasks_widget, done_task_area);
 
-            if self.current_area == Area::TaskAdd {
+            if let Some(task_add_widget) = task_add_widget {
                 let mut task_add_area = done_task_area.clone();
                 task_add_area.height /= 2;
                 task_add_area.y = done_task_area.y + done_task_area.height;
-
-                let task_add_widget = Paragraph::new(self.new_task_buffer.clone())
-                    .block(Block::default().title("Task add").borders(Borders::ALL))
-                    .blue();
 
                 frame.render_widget(task_add_widget, task_add_area);
             }
@@ -146,19 +154,12 @@ impl TuiRatatuiDisplay {
         let mut next_count = SystemTime::now();
         let one_sec = Duration::from_secs(1);
         while !self.should_close {
-            while next_count.elapsed().unwrap() <= one_sec {
-                self.handle_events()?;
-                if self.should_close {
-                    break;
-                }
-            }
-            next_count = SystemTime::now();
-
-            if !self.pause {
-                let _ = self.display();
+            if !self.pause && next_count.elapsed().unwrap() > one_sec {
                 self.pomodoro.foward();
+                next_count = SystemTime::now();
             }
 
+            let _ = self.display();
             self.handle_events()?;
         }
 
