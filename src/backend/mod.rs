@@ -1,4 +1,8 @@
-use std::time::Duration;
+use serde::{Deserialize, Serialize};
+use std::{
+    io::{Read, Write},
+    time::Duration,
+};
 
 pub struct Pomodoro {
     focus: Timer,
@@ -7,7 +11,7 @@ pub struct Pomodoro {
     timer: TimerType,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum TimerType {
     Focus,
     Rest,
@@ -21,6 +25,43 @@ impl Pomodoro {
             tasks: vec![],
             timer: TimerType::Focus,
         }
+    }
+
+    pub fn load(&mut self) -> std::io::Result<()> {
+        let mut file = std::fs::File::open(".data/tasks")?;
+        let mut task_string = String::new();
+
+        let _ = file.read_to_string(&mut task_string)?;
+
+        let tasks_data: Vec<&str> = task_string.as_str().split("\n").collect();
+        for task_data in tasks_data {
+            if task_data.len() == 0 {
+                continue;
+            }
+
+            let task_data: Vec<&str> = task_data.split(":").collect();
+            let task = Task::new(task_data[0], task_data[1]);
+            self.tasks.push(task);
+        }
+
+        Ok(())
+    }
+
+    pub fn save(&self) -> std::io::Result<()> {
+        let _ = Self::create_data_folder();
+
+        if let Ok(mut file) = std::fs::File::create(".data/tasks") {
+            for task in self.task_get_by_complete(false) {
+                file.write_all(format!("{}:{}\n", task.name, task.description).as_bytes())?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn create_data_folder() -> std::io::Result<()> {
+        std::fs::create_dir(".data")?;
+        Ok(())
     }
 
     pub fn foward(&mut self) -> Duration {
@@ -128,7 +169,7 @@ impl Timer {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     pub name: String,
     pub description: String,
