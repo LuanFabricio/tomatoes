@@ -273,10 +273,10 @@ impl TuiRatatuiDisplay {
                             Area::Timer => {
                                 match self.selected_col {
                                     0 => {
-                                        self.pause = true;
+                                        self.pause = false;
                                     }
                                     1 => {
-                                        self.pause = false;
+                                        self.pause = true;
                                     }
                                     2 => {
                                         self.pomodoro.next_mode();
