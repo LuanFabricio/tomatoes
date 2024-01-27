@@ -10,8 +10,9 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    style::Stylize,
-    widgets::{Block, Borders, Paragraph},
+    style::{Color, Modifier, Style, Styled, Stylize},
+    text::{Line, Span},
+    widgets::{Block, Borders, Padding, Paragraph},
     Terminal,
 };
 
@@ -31,6 +32,7 @@ pub struct TuiRatatuiDisplay {
     should_close: bool,
     current_area: Area,
     selected_row: usize,
+    selected_col: usize,
     pause: bool,
     space_timeout: SystemTime,
     new_task_buffer: String,
@@ -46,14 +48,21 @@ impl TuiRatatuiDisplay {
             pause: false,
             current_area: Area::Timer,
             selected_row: 0,
+            selected_col: 0,
             space_timeout: SystemTime::now(),
             new_task_buffer: String::new(),
         })
     }
 
     pub fn display(&mut self) -> io::Result<()> {
+        let height = self.terminal.size().ok().unwrap().height;
         // Timer
-        let timer_widget = Self::create_timer_widget(&self.pomodoro, &self.current_area);
+        let timer_widget = Self::create_timer_widget(
+            &self.pomodoro,
+            &self.current_area,
+            height >> 5,
+            self.selected_col,
+        );
 
         // Completed tasks
         let not_completed_widget = Self::create_not_completed_widget(
@@ -66,6 +75,7 @@ impl TuiRatatuiDisplay {
         let completed_widget =
             Self::create_completed_widget(&self.pomodoro, &self.current_area, self.selected_row);
 
+        // Task add section
         let task_add_widget =
             Self::create_add_task(&self.current_area, self.new_task_buffer.clone());
 
@@ -96,19 +106,48 @@ impl TuiRatatuiDisplay {
         Ok(())
     }
 
-    fn create_timer_widget<'a>(pomodoro: &'a Pomodoro, current_area: &'a Area) -> Paragraph<'a> {
+    fn create_timer_widget<'a>(
+        pomodoro: &'a Pomodoro,
+        current_area: &'a Area,
+        height: u16,
+        selected_col: usize,
+    ) -> Paragraph<'a> {
         let pomo_mode = match pomodoro.get_mode() {
             TimerType::Focus => "Focus",
             TimerType::Rest => "Rest",
         };
 
-        let mut widget = Paragraph::new(pomodoro.timer_to_string())
-            .block(Block::default().title(pomo_mode).borders(Borders::ALL));
+        let pomo_string = pomodoro.timer_to_string();
+
+        let mut styles = vec![
+            Style::default().bg(Color::Gray),
+            Style::default().bg(Color::Gray),
+            Style::default().bg(Color::Gray),
+        ];
+
+        styles[selected_col] = styles[selected_col].fg(Color::Red);
+
+        let pomo_display: Vec<Line<'_>> = vec![
+            Span::from(pomo_string).into(),
+            vec![
+                Span::styled("⏵ ", styles[0]),
+                Span::styled("⏸︎ ", styles[1]),
+                Span::styled("⏭ ", styles[2]),
+            ]
+            .into(),
+        ];
+
+        let mut widget = Paragraph::new(pomo_display).block(
+            Block::default()
+                .title(pomo_mode)
+                .borders(Borders::ALL)
+                .padding(Padding::new(0, 0, height, 0)),
+        );
         if *current_area == Area::Timer {
             widget = widget.blue();
         }
 
-        widget
+        widget.alignment(ratatui::layout::Alignment::Center)
     }
 
     fn create_not_completed_widget<'a>(
@@ -117,20 +156,25 @@ impl TuiRatatuiDisplay {
         selected_row: usize,
     ) -> Paragraph<'a> {
         let not_completed_tasks = pomodoro.task_get_by_complete(false);
-        let mut not_completed_tasks_string = String::new();
+        let mut not_completed_tasks_vec: Vec<Line<'_>> = vec![];
 
         for (i, task) in not_completed_tasks.iter().enumerate() {
-            if *current_area == Area::TasksNotCompleted && i == selected_row {
-                not_completed_tasks_string +=
-                    format!("[*] {}: {}", task.name, task.description).as_str();
+            let task_line = if *current_area == Area::TasksNotCompleted && i == selected_row {
+                (
+                    format!("[*] {}: {}", task.name, task.description),
+                    Style::default().add_modifier(Modifier::BOLD),
+                )
             } else {
-                not_completed_tasks_string +=
-                    format!("[ ] {}: {}", task.name, task.description).as_str();
-            }
-            not_completed_tasks_string += "\n";
+                (
+                    format!("[ ] {}: {}", task.name, task.description),
+                    Style::default(),
+                )
+            };
+
+            not_completed_tasks_vec.push(Span::styled(task_line.0 + "\n", task_line.1).into());
         }
 
-        let mut task_widget = Paragraph::new(not_completed_tasks_string)
+        let mut task_widget = Paragraph::new(not_completed_tasks_vec)
             .block(Block::default().title("TODO:").borders(Borders::ALL));
         if *current_area == Area::TasksNotCompleted {
             task_widget = task_widget.blue();
@@ -145,20 +189,25 @@ impl TuiRatatuiDisplay {
         selected_row: usize,
     ) -> Paragraph<'a> {
         let completed_tasks = pomodoro.task_get_by_complete(true);
-        let mut completed_tasks_string = String::new();
+        let mut completed_tasks_vec: Vec<Line<'_>> = vec![];
 
         for (i, task) in completed_tasks.iter().enumerate() {
-            if *current_area == Area::TasksCompleted && i == selected_row {
-                completed_tasks_string +=
-                    format!("[*] {}: {}", task.name, task.description).as_str();
+            let task_line = if *current_area == Area::TasksCompleted && i == selected_row {
+                (
+                    format!("[*] {}: {}", task.name, task.description),
+                    Style::default().add_modifier(Modifier::BOLD),
+                )
             } else {
-                completed_tasks_string +=
-                    format!("[x] {}: {}", task.name, task.description).as_str();
-            }
-            completed_tasks_string += "\n";
+                (
+                    format!("[x] {}: {}", task.name, task.description),
+                    Style::default(),
+                )
+            };
+
+            completed_tasks_vec.push(Span::styled(task_line.0 + "\n", task_line.1).into());
         }
 
-        let mut widget = Paragraph::new(completed_tasks_string)
+        let mut widget = Paragraph::new(completed_tasks_vec)
             .block(Block::default().title("DONE:").borders(Borders::ALL));
 
         if *current_area == Area::TasksCompleted {
@@ -222,7 +271,20 @@ impl TuiRatatuiDisplay {
                         }
                         match self.current_area {
                             Area::Timer => {
-                                self.pause = !self.pause;
+                                match self.selected_col {
+                                    0 => {
+                                        self.pause = true;
+                                    }
+                                    1 => {
+                                        self.pause = false;
+                                    }
+                                    2 => {
+                                        self.pomodoro.next_mode();
+                                    }
+                                    _ => {}
+                                }
+                                // self.pause = !self.pause;
+                                // self.selected_col = 0;
                             }
                             Area::TasksNotCompleted => {
                                 self.pomodoro.task_complete(self.selected_row);
@@ -284,6 +346,23 @@ impl TuiRatatuiDisplay {
                         }
                         _ => {}
                     },
+                    (KeyCode::Left, KeyEventKind::Press) => match self.current_area {
+                        Area::Timer => {
+                            if self.selected_col == 0 {
+                                self.selected_col = 2;
+                            } else {
+                                self.selected_col -= 1;
+                            }
+                        }
+                        _ => {}
+                    },
+                    (KeyCode::Right, KeyEventKind::Press) => match self.current_area {
+                        Area::Timer => {
+                            self.selected_col += 1;
+                            self.selected_col = self.selected_col % 3;
+                        }
+                        _ => {}
+                    },
                     (KeyCode::Char('+'), KeyEventKind::Press) => match self.current_area {
                         Area::TaskAdd => {}
                         _ => self.current_area = Area::TaskAdd,
@@ -301,6 +380,7 @@ impl TuiRatatuiDisplay {
 
                             self.new_task_buffer = String::new();
                             self.current_area = Area::Timer;
+                            self.selected_row = 0;
                         }
                         _ => {}
                     },
