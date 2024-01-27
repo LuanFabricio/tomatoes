@@ -87,6 +87,25 @@ impl Pomodoro {
         }
     }
 
+    pub fn next_mode(&mut self) {
+        self.reset_timer(self.timer);
+        match self.timer {
+            TimerType::Focus => {
+                self.timer = TimerType::Rest;
+            }
+            TimerType::Rest => {
+                self.timer = TimerType::Focus;
+            }
+        }
+    }
+
+    pub fn reset_timer(&mut self, timer_type: TimerType) {
+        match timer_type {
+            TimerType::Rest => self.rest.current_time = self.rest.initial_time,
+            TimerType::Focus => self.focus.current_time = self.focus.initial_time,
+        };
+    }
+
     pub fn get_mode(&self) -> TimerType {
         self.timer
     }
