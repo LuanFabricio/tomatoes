@@ -1,6 +1,7 @@
+use rodio::OutputStream;
 use serde::{Deserialize, Serialize};
 use std::{
-    io::{Read, Write},
+    io::{BufReader, Read, Write},
     ops::Deref,
     time::Duration,
 };
@@ -105,10 +106,20 @@ impl Pomodoro {
                         unreachable!()
                     }
                 };
+
+                self.alarm_play();
                 self.timer = s.deref().clone();
                 duration
             }
         }
+    }
+
+    pub fn alarm_play(&self) {
+        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let file = std::fs::File::open("assets/sounds/clock-alarm-8761.mp3").unwrap();
+        let beep = stream_handle.play_once(BufReader::new(file)).unwrap();
+        // TODO: Maybe switch to a non-blocking approach
+        beep.sleep_until_end();
     }
 
     pub fn next_mode(&mut self) {
@@ -209,16 +220,22 @@ impl Pomodoro {
     }
 
     fn get_current_duration(&self) -> Duration {
-        match self.timer {
+        match &self.timer {
             TimerType::Focus => self.focus.current_time,
             TimerType::Rest => self.rest.current_time,
-            TimerType::Transitioning(_) => {
-                unreachable!()
+            TimerType::Transitioning(s) => {
+                match s.deref() {
+                    TimerType::Focus => self.focus,
+                    TimerType::Rest => self.rest,
+                    _ => unimplemented!(),
+                }
+                .current_time
             }
         }
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Timer {
     current_time: Duration,
     initial_time: Duration,
