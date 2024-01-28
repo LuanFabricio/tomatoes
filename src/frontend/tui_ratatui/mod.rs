@@ -10,13 +10,13 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    style::{Color, Modifier, Style, Styled, Stylize},
+    style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
     widgets::{Block, Borders, Padding, Paragraph},
     Terminal,
 };
 
-use crate::backend::{Pomodoro, Task, TimerType};
+use crate::backend::{Pomodoro, Task};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Area {
@@ -112,21 +112,14 @@ impl TuiRatatuiDisplay {
         height: u16,
         selected_col: usize,
     ) -> Paragraph<'a> {
-        let pomo_mode = match pomodoro.get_mode() {
-            TimerType::Focus => "Focus",
-            TimerType::Rest => "Rest",
-        };
-
-        let pomo_string = pomodoro.timer_to_string();
-
         let mut styles = vec![
             Style::default().bg(Color::Gray),
             Style::default().bg(Color::Gray),
             Style::default().bg(Color::Gray),
         ];
-
         styles[selected_col] = styles[selected_col].fg(Color::Red);
 
+        let pomo_string = pomodoro.timer_to_string();
         let pomo_display: Vec<Line<'_>> = vec![
             Span::from(pomo_string).into(),
             vec![
@@ -136,6 +129,8 @@ impl TuiRatatuiDisplay {
             ]
             .into(),
         ];
+
+        let pomo_mode = pomodoro.timer_mode_string();
 
         let mut widget = Paragraph::new(pomo_display).block(
             Block::default()

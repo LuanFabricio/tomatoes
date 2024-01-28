@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use tomatoes::backend::{Pomodoro, Task};
+use tomatoes::backend::Pomodoro;
 use tomatoes::frontend::tui_ratatui::TuiRatatuiDisplay;
 
 fn main() {

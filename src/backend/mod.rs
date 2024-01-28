@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{
     io::{Read, Write},
+    ops::Deref,
     time::Duration,
 };
 
@@ -9,12 +10,14 @@ pub struct Pomodoro {
     rest: Timer,
     tasks: Vec<Task>,
     timer: TimerType,
+    play_alarm: bool,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum TimerType {
     Focus,
     Rest,
+    Transitioning(Box<TimerType>),
 }
 
 impl Pomodoro {
@@ -24,6 +27,7 @@ impl Pomodoro {
             rest: Timer::new(rest_time),
             tasks: vec![],
             timer: TimerType::Focus,
+            play_alarm: true,
         }
     }
 
@@ -65,36 +69,59 @@ impl Pomodoro {
     }
 
     pub fn foward(&mut self) -> Duration {
-        match self.timer {
+        let one_sec = Duration::from_secs(1);
+        match &self.timer {
             TimerType::Focus => {
-                self.focus.current_time -= Duration::from_secs(1);
+                self.focus.current_time -= one_sec;
 
                 if self.focus.current_time == Duration::ZERO {
-                    self.timer = TimerType::Rest;
+                    let mut new_timer = TimerType::Rest;
+                    if self.play_alarm {
+                        new_timer = TimerType::Transitioning(Box::new(new_timer));
+                    }
+                    self.timer = new_timer;
                     self.focus.current_time = self.focus.initial_time
                 }
                 self.focus.current_time
             }
             TimerType::Rest => {
-                self.rest.current_time -= Duration::from_secs(1);
+                self.rest.current_time -= one_sec;
 
                 if self.rest.current_time == Duration::ZERO {
-                    self.timer = TimerType::Focus;
+                    let mut new_timer = TimerType::Focus;
+                    if self.play_alarm {
+                        new_timer = TimerType::Transitioning(Box::new(new_timer));
+                    }
+                    self.timer = new_timer;
                     self.rest.current_time = self.rest.initial_time
                 }
                 self.rest.current_time
+            }
+            TimerType::Transitioning(s) => {
+                let duration = match s.deref() {
+                    TimerType::Focus => self.focus.current_time,
+                    TimerType::Rest => self.rest.current_time,
+                    _ => {
+                        unreachable!()
+                    }
+                };
+                self.timer = s.deref().clone();
+                duration
             }
         }
     }
 
     pub fn next_mode(&mut self) {
-        self.reset_timer(self.timer);
-        match self.timer {
+        self.reset_timer(self.timer.clone());
+        match &self.timer {
             TimerType::Focus => {
                 self.timer = TimerType::Rest;
             }
             TimerType::Rest => {
                 self.timer = TimerType::Focus;
+            }
+            TimerType::Transitioning(_) => {
+                unreachable!()
             }
         }
     }
@@ -103,11 +130,14 @@ impl Pomodoro {
         match timer_type {
             TimerType::Rest => self.rest.current_time = self.rest.initial_time,
             TimerType::Focus => self.focus.current_time = self.focus.initial_time,
+            TimerType::Transitioning(_) => {
+                unreachable!()
+            }
         };
     }
 
     pub fn get_mode(&self) -> TimerType {
-        self.timer
+        self.timer.clone()
     }
 
     pub fn task_add(&mut self, new_task: Task) {
@@ -147,11 +177,23 @@ impl Pomodoro {
         completed_tasks
     }
 
-    pub fn to_string(&self) -> String {
-        let timer_type = match self.timer {
+    pub fn timer_mode_string(&self) -> String {
+        match &self.timer {
             TimerType::Focus => String::from("Focus"),
             TimerType::Rest => String::from("Rest"),
-        };
+            TimerType::Transitioning(s) => {
+                let next_mode = match s.deref() {
+                    TimerType::Focus => "Focus",
+                    TimerType::Rest => "Rest",
+                    TimerType::Transitioning(_) => unreachable!(),
+                };
+                format!("Transitioning({next_mode})",)
+            }
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        let timer_type = self.timer_mode_string();
 
         let timer_string = self.timer_to_string();
         format!("{timer_type}: \n\t {timer_string}")
@@ -170,6 +212,9 @@ impl Pomodoro {
         match self.timer {
             TimerType::Focus => self.focus.current_time,
             TimerType::Rest => self.rest.current_time,
+            TimerType::Transitioning(_) => {
+                unreachable!()
+            }
         }
     }
 }
