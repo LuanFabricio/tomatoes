@@ -379,8 +379,10 @@ impl TuiRatatuiDisplay {
                     },
                     (KeyCode::Backspace, KeyEventKind::Press) => match self.current_area {
                         Area::TaskAdd => {
-                            let last_index = (self.new_task_buffer.len() - 1).max(0);
-                            self.new_task_buffer.remove(last_index);
+                            let mut buffer_str = self.new_task_buffer.chars();
+                            let _ = buffer_str.next_back();
+
+                            self.new_task_buffer = buffer_str.collect();
                         }
                         _ => {}
                     },
