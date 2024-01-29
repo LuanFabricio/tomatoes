@@ -18,6 +18,8 @@ use ratatui::{
 
 use crate::backend::{Pomodoro, Task};
 
+const COL_SIZE: usize = 2;
+
 #[derive(Debug, PartialEq, Eq)]
 enum Area {
     Timer,
@@ -115,7 +117,6 @@ impl TuiRatatuiDisplay {
         let mut styles = vec![
             Style::default().bg(Color::Gray),
             Style::default().bg(Color::Gray),
-            Style::default().bg(Color::Gray),
         ];
         styles[selected_col] = styles[selected_col].fg(Color::Red);
 
@@ -123,9 +124,8 @@ impl TuiRatatuiDisplay {
         let pomo_display: Vec<Line<'_>> = vec![
             Span::from(pomo_string).into(),
             vec![
-                Span::styled("⏵ ", styles[0]),
-                Span::styled("⏸︎ ", styles[1]),
-                Span::styled("⏭ ", styles[2]),
+                Span::styled("⏵⏸︎ ", styles[0]),
+                Span::styled("⏭ ", styles[1]),
             ]
             .into(),
         ];
@@ -264,16 +264,14 @@ impl TuiRatatuiDisplay {
                                 return Ok(());
                             }
                         }
+
                         match self.current_area {
                             Area::Timer => {
                                 match self.selected_col {
                                     0 => {
-                                        self.pause = false;
+                                        self.pause = !self.pause;
                                     }
                                     1 => {
-                                        self.pause = true;
-                                    }
-                                    2 => {
                                         self.pomodoro.next_mode();
                                     }
                                     _ => {}
@@ -344,7 +342,7 @@ impl TuiRatatuiDisplay {
                     (KeyCode::Left, KeyEventKind::Press) => match self.current_area {
                         Area::Timer => {
                             if self.selected_col == 0 {
-                                self.selected_col = 2;
+                                self.selected_col = COL_SIZE - 1;
                             } else {
                                 self.selected_col -= 1;
                             }
@@ -354,7 +352,7 @@ impl TuiRatatuiDisplay {
                     (KeyCode::Right, KeyEventKind::Press) => match self.current_area {
                         Area::Timer => {
                             self.selected_col += 1;
-                            self.selected_col = self.selected_col % 3;
+                            self.selected_col = self.selected_col % COL_SIZE;
                         }
                         _ => {}
                     },
