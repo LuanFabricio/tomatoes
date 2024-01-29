@@ -253,9 +253,14 @@ impl TuiRatatuiDisplay {
         if event::poll(Duration::from_secs_f64(1f64 / 60f64))? {
             if let Event::Key(key) = event::read()? {
                 match (key.code, key.kind) {
-                    (KeyCode::Esc, KeyEventKind::Press) => {
-                        self.should_close = true;
-                    }
+                    (KeyCode::Esc, KeyEventKind::Press) => match self.current_area {
+                        Area::TaskAdd => {
+                            self.selected_row = 0;
+                            self.current_area = Area::Timer;
+                            self.new_task_buffer = String::new();
+                        }
+                        _ => self.should_close = true,
+                    },
                     (KeyCode::Char(' '), KeyEventKind::Press) => {
                         const SPACE_DELAY: Duration = Duration::from_secs(2);
                         if let Ok(time_elapsed) = self.space_timeout.elapsed() {
