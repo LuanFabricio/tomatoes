@@ -130,7 +130,7 @@ impl TuiRatatuiDisplay {
             .into(),
         ];
 
-        let pomo_mode = pomodoro.timer_mode_string();
+        let pomo_mode = pomodoro.get_current_timer().to_string();
 
         let mut widget = Paragraph::new(pomo_display).block(
             Block::default()

@@ -184,23 +184,8 @@ impl Pomodoro {
         completed_tasks
     }
 
-    pub fn timer_mode_string(&self) -> String {
-        match &self.timer {
-            TimerType::Focus => String::from("Focus"),
-            TimerType::Rest => String::from("Rest"),
-            TimerType::Transitioning(s) => {
-                let next_mode = match s.deref() {
-                    TimerType::Focus => "Focus",
-                    TimerType::Rest => "Rest",
-                    TimerType::Transitioning(_) => unreachable!(),
-                };
-                format!("Transitioning({next_mode})",)
-            }
-        }
-    }
-
     pub fn to_string(&self) -> String {
-        let timer_type = self.timer_mode_string();
+        let timer_type = self.timer.to_string();
 
         let timer_string = self.timer_to_string();
         format!("{timer_type}: \n\t {timer_string}")
@@ -211,7 +196,7 @@ impl Pomodoro {
         timer.to_string()
     }
 
-    fn get_current_timer(&self) -> Timer {
+    pub fn get_current_timer(&self) -> Timer {
         match &self.timer {
             TimerType::Focus => self.focus,
             TimerType::Rest => self.rest,

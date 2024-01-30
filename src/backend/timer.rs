@@ -1,12 +1,6 @@
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 use std::time::Duration;
-
-#[derive(Clone, Serialize, Deserialize)]
-pub enum TimerType {
-    Focus,
-    Rest,
-    Transitioning(Box<TimerType>),
-}
 
 #[derive(Clone, Copy)]
 pub struct Timer {
@@ -29,5 +23,29 @@ impl Timer {
         let mins = (duration.as_secs_f32() - (secs as f32)) / 60f32;
 
         format!("{:02}:{:02}", mins, secs)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub enum TimerType {
+    Focus,
+    Rest,
+    Transitioning(Box<TimerType>),
+}
+
+impl TimerType {
+    pub fn to_string(&self) -> String {
+        match self {
+            TimerType::Focus => String::from("Focus"),
+            TimerType::Rest => String::from("Rest"),
+            TimerType::Transitioning(s) => {
+                let next_mode = match s.deref() {
+                    TimerType::Focus => "Focus",
+                    TimerType::Rest => "Rest",
+                    TimerType::Transitioning(_) => unreachable!(),
+                };
+                format!("Transitioning({next_mode})",)
+            }
+        }
     }
 }
