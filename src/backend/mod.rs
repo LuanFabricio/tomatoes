@@ -1,3 +1,4 @@
+mod file;
 mod pomodoro;
 mod task;
 mod timer;

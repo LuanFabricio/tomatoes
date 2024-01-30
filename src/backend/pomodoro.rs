@@ -1,13 +1,10 @@
+use super::file::PomoFile;
 use super::task::*;
 use super::timer::*;
 
 use rodio::OutputStream;
 
-use std::{
-    io::{BufReader, Read, Write},
-    ops::Deref,
-    time::Duration,
-};
+use std::{io::BufReader, ops::Deref, time::Duration};
 
 pub struct Pomodoro {
     focus: Timer,
@@ -29,39 +26,13 @@ impl Pomodoro {
     }
 
     pub fn load(&mut self) -> std::io::Result<()> {
-        let mut file = std::fs::File::open(".data/tasks")?;
-        let mut task_string = String::new();
-
-        let _ = file.read_to_string(&mut task_string)?;
-
-        let tasks_data: Vec<&str> = task_string.as_str().split("\n").collect();
-        for task_data in tasks_data {
-            if task_data.len() == 0 {
-                continue;
-            }
-
-            let task_data: Vec<&str> = task_data.split(":").collect();
-            let task = Task::new(task_data[0], task_data[1]);
-            self.tasks.push(task);
-        }
-
+        self.tasks = PomoFile::load()?;
         Ok(())
     }
 
     pub fn save(&self) -> std::io::Result<()> {
-        let _ = Self::create_data_folder();
+        PomoFile::save(self.task_get_by_complete(false))?;
 
-        if let Ok(mut file) = std::fs::File::create(".data/tasks") {
-            for task in self.task_get_by_complete(false) {
-                file.write_all(format!("{}:{}\n", task.name, task.description).as_bytes())?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn create_data_folder() -> std::io::Result<()> {
-        std::fs::create_dir(".data")?;
         Ok(())
     }
 
