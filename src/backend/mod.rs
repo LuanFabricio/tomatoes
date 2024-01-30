@@ -1,3 +1,7 @@
+mod timer;
+
+pub use timer::*;
+
 use rodio::OutputStream;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,13 +16,6 @@ pub struct Pomodoro {
     tasks: Vec<Task>,
     timer: TimerType,
     play_alarm: bool,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub enum TimerType {
-    Focus,
-    Rest,
-    Transitioning(Box<TimerType>),
 }
 
 impl Pomodoro {
@@ -236,21 +233,6 @@ impl Pomodoro {
 
     // TODO: Add a extend mode option.
     // TODO: Add a autopause mode option.
-}
-
-#[derive(Clone, Copy)]
-pub struct Timer {
-    current_time: Duration,
-    initial_time: Duration,
-}
-
-impl Timer {
-    pub fn new(initial_time: Duration) -> Self {
-        Self {
-            current_time: initial_time,
-            initial_time,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
