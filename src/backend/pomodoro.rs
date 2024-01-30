@@ -158,13 +158,8 @@ impl Pomodoro {
     pub fn to_string(&self) -> String {
         let timer_type = self.timer.to_string();
 
-        let timer_string = self.timer_to_string();
+        let timer_string = self.get_current_timer().to_string();
         format!("{timer_type}: \n\t {timer_string}")
-    }
-
-    pub fn timer_to_string(&self) -> String {
-        let timer = self.get_current_timer();
-        timer.to_string()
     }
 
     pub fn get_current_timer(&self) -> Timer {

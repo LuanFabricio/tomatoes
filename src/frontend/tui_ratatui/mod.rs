@@ -120,7 +120,7 @@ impl TuiRatatuiDisplay {
         ];
         styles[selected_col] = styles[selected_col].fg(Color::Red);
 
-        let pomo_string = pomodoro.timer_to_string();
+        let pomo_string = pomodoro.get_current_timer().to_string();
         let pomo_display: Vec<Line<'_>> = vec![
             Span::from(pomo_string).into(),
             vec![
