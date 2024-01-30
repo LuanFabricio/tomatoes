@@ -207,26 +207,19 @@ impl Pomodoro {
     }
 
     pub fn timer_to_string(&self) -> String {
-        let duration = self.get_current_duration();
-
-        let secs = duration.as_secs() % 60;
-        let mins = (duration.as_secs_f32() - (secs as f32)) / 60f32;
-
-        format!("{:02}:{:02}", mins, secs)
+        let timer = self.get_current_timer();
+        timer.to_string()
     }
 
-    fn get_current_duration(&self) -> Duration {
+    fn get_current_timer(&self) -> Timer {
         match &self.timer {
-            TimerType::Focus => self.focus.current_time,
-            TimerType::Rest => self.rest.current_time,
-            TimerType::Transitioning(s) => {
-                match s.deref() {
-                    TimerType::Focus => self.focus,
-                    TimerType::Rest => self.rest,
-                    _ => unimplemented!(),
-                }
-                .current_time
-            }
+            TimerType::Focus => self.focus,
+            TimerType::Rest => self.rest,
+            TimerType::Transitioning(s) => match s.deref() {
+                TimerType::Focus => self.focus,
+                TimerType::Rest => self.rest,
+                _ => unimplemented!(),
+            },
         }
     }
 

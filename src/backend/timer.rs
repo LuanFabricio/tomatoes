@@ -21,4 +21,13 @@ impl Timer {
             initial_time,
         }
     }
+
+    pub fn to_string(&self) -> String {
+        let duration = self.current_time;
+
+        let secs = duration.as_secs() % 60;
+        let mins = (duration.as_secs_f32() - (secs as f32)) / 60f32;
+
+        format!("{:02}:{:02}", mins, secs)
+    }
 }
