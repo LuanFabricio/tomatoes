@@ -32,11 +32,10 @@ impl Pomodoro {
 
     pub fn save(&self) -> std::io::Result<()> {
         PomoFile::save(self.task_get_by_complete(false))?;
-
         Ok(())
     }
 
-    pub fn foward(&mut self) -> Duration {
+    pub fn forward(&mut self) -> Duration {
         let one_sec = Duration::from_secs(1);
         match &self.timer {
             TimerType::Focus => {
@@ -216,5 +215,9 @@ mod test {
             let pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
             assert_eq!(pomodoro.tasks.is_empty(), true);
         }
+    }
+
+    mod forward {
+        use super::*;
     }
 }

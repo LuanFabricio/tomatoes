@@ -233,7 +233,7 @@ impl TuiRatatuiDisplay {
         let one_sec = Duration::from_secs(1);
         while !self.should_close {
             if !self.pause && next_count.elapsed().unwrap() > one_sec {
-                self.pomodoro.foward();
+                self.pomodoro.forward();
                 next_count = SystemTime::now();
             }
 

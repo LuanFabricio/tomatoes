@@ -35,7 +35,7 @@ impl TerminalDisplay {
 
     pub fn pomo_loop(&mut self) {
         loop {
-            self.pomodoro.foward();
+            self.pomodoro.forward();
             self.display();
 
             std::process::Command::new("sleep")
