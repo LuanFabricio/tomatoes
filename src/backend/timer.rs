@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 use std::time::Duration;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Timer {
     pub current_time: Duration,
     pub initial_time: Duration,
@@ -26,7 +26,7 @@ impl Timer {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum TimerType {
     Focus,
     Rest,
