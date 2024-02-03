@@ -11,7 +11,7 @@ pub struct Pomodoro {
     rest: Timer,
     tasks: Vec<Task>,
     timer: TimerType,
-    play_alarm: bool,
+    play_sound_alarm: bool,
 }
 
 impl Pomodoro {
@@ -21,7 +21,7 @@ impl Pomodoro {
             rest: Timer::new(rest_time),
             tasks: vec![],
             timer: TimerType::Focus,
-            play_alarm: true,
+            play_sound_alarm: true,
         }
     }
 
@@ -44,7 +44,7 @@ impl Pomodoro {
 
                 if self.focus.current_time == Duration::ZERO {
                     let mut new_timer = TimerType::Rest;
-                    if self.play_alarm {
+                    if self.play_sound_alarm {
                         new_timer = TimerType::Transitioning(Box::new(new_timer));
                     }
                     self.timer = new_timer;
@@ -57,7 +57,7 @@ impl Pomodoro {
 
                 if self.rest.current_time == Duration::ZERO {
                     let mut new_timer = TimerType::Focus;
-                    if self.play_alarm {
+                    if self.play_sound_alarm {
                         new_timer = TimerType::Transitioning(Box::new(new_timer));
                     }
                     self.timer = new_timer;
@@ -176,4 +176,45 @@ impl Pomodoro {
 
     // TODO: Add a extend mode option.
     // TODO: Add a autopause mode option.
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    const FOCUS_TIME: Duration = Duration::from_secs(15);
+    const REST_TIME: Duration = Duration::from_secs(15);
+
+    mod new {
+        use super::*;
+
+        #[test]
+        fn should_initialize_in_focus_time() {
+            let pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            assert_eq!(pomodoro.timer, TimerType::Focus);
+        }
+
+        #[test]
+        fn should_initalize_timers() {
+            let pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            let focus_timer = Timer::new(FOCUS_TIME);
+            let rest_timer = Timer::new(REST_TIME);
+
+            assert_eq!(pomodoro.focus, focus_timer);
+            assert_eq!(pomodoro.rest, rest_timer);
+        }
+
+        #[test]
+        fn should_initialize_with_the_play_sound_alarm_equals_true() {
+            let pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            assert_eq!(pomodoro.play_sound_alarm, true);
+        }
+
+        #[test]
+        fn should_initialize_with_the_task_vec_empty() {
+            let pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            assert_eq!(pomodoro.tasks.is_empty(), true);
+        }
+    }
 }
