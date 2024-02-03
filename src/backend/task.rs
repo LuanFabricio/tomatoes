@@ -21,21 +21,56 @@ impl Task {
         let name = split[0].trim();
         let description = split.get(1).unwrap_or(&"").trim();
 
-        Self {
-            name: name.into(),
-            description: description.to_string(),
-            completed: false,
-        }
+        Self::new(name, description)
     }
 }
 
-impl std::fmt::Display for Task {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let formated_task = format!(
-            "Task\n\t name: {}\n\tdescription: {}\n\t completed: {}",
-            self.name, self.description, self.completed
-        );
+#[cfg(test)]
+mod test {
+    use super::*;
 
-        write!(f, "{}", formated_task)
+    mod new {
+        use super::*;
+
+        const TASK_NAME: &str = "Task name";
+        const TASK_DESCRIPTION: &str = "Task description";
+        #[test]
+        fn should_create_a_task_with_name_and_description() {
+            let task = Task::new(TASK_NAME, TASK_DESCRIPTION);
+
+            assert_eq!(task.name, TASK_NAME);
+            assert_eq!(task.description, TASK_DESCRIPTION);
+        }
+
+        #[test]
+        fn should_create_a_task_with_completed_equals_false() {
+            let task = Task::new(TASK_NAME, TASK_DESCRIPTION);
+
+            assert_eq!(task.completed, false);
+        }
+    }
+
+    mod from_str {
+        use super::*;
+        const TASK_NAME: &str = "Task name";
+        const TASK_DESCRIPTION: &str = "Task description";
+
+        #[test]
+        fn should_create_a_task_with_a_string() {
+            let task_str = TASK_NAME.to_string() + ":" + TASK_DESCRIPTION;
+            let task = Task::from_str(task_str.as_str());
+
+            assert_eq!(task.name, TASK_NAME);
+            assert_eq!(task.description, TASK_DESCRIPTION);
+        }
+
+        #[test]
+        fn should_handle_str_without_description() {
+            let task_str = TASK_NAME.to_string();
+            let task = Task::from_str(task_str.as_str());
+
+            assert_eq!(task.name, TASK_NAME);
+            assert_eq!(task.description, "");
+        }
     }
 }
