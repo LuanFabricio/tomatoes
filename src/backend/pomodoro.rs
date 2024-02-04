@@ -245,9 +245,17 @@ mod test {
         #[test]
         fn should_reset_timer_when_is_done() {
             let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            // Disable alarm transition.
+            pomodoro.alarm_disable();
 
             pomodoro.focus.current_time = Duration::from_secs(1);
             pomodoro.forward();
+            assert_eq!(pomodoro.focus.current_time, pomodoro.focus.initial_time);
+
+            assert_eq!(pomodoro.timer, TimerType::Rest);
+            pomodoro.rest.current_time = Duration::from_secs(1);
+            pomodoro.forward();
+            assert_eq!(pomodoro.rest.current_time, pomodoro.rest.initial_time);
         }
 
         #[test]
