@@ -73,7 +73,10 @@ impl Pomodoro {
                     }
                 };
 
-                self.alarm_play();
+                if self.play_sound_alarm && std::env::var("ENV") != Ok("TEST".to_string()) {
+                    self.alarm_play();
+                }
+
                 self.timer = s.deref().clone();
                 duration
             }
@@ -86,6 +89,10 @@ impl Pomodoro {
         let beep = stream_handle.play_once(BufReader::new(file)).unwrap();
         // NOTE: Maybe switch to a non-blocking approach
         beep.sleep_until_end();
+    }
+
+    pub fn alarm_disable(&mut self) {
+        self.play_sound_alarm = false;
     }
 
     pub fn next_mode(&mut self) {
@@ -219,5 +226,68 @@ mod test {
 
     mod forward {
         use super::*;
+
+        #[test]
+        fn should_advance_current_time_one_second_by_timer_type() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            pomodoro.timer = TimerType::Focus;
+            pomodoro.forward();
+            let new_focus_time = FOCUS_TIME - Duration::from_secs(1);
+            assert_eq!(pomodoro.focus.current_time, new_focus_time);
+
+            pomodoro.timer = TimerType::Rest;
+            pomodoro.forward();
+            let new_rest_time = REST_TIME - Duration::from_secs(1);
+            assert_eq!(pomodoro.rest.current_time, new_rest_time);
+        }
+
+        #[test]
+        fn should_reset_timer_when_is_done() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            pomodoro.focus.current_time = Duration::from_secs(1);
+            pomodoro.forward();
+        }
+
+        #[test]
+        fn should_exit_transition() {
+            std::env::set_var("ENV", "TEST");
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            pomodoro.timer = TimerType::Transitioning(Box::new(TimerType::Focus));
+            pomodoro.forward();
+            assert_eq!(pomodoro.timer, TimerType::Focus);
+
+            pomodoro.timer = TimerType::Transitioning(Box::new(TimerType::Rest));
+            pomodoro.forward();
+            assert_eq!(pomodoro.timer, TimerType::Rest);
+        }
+
+        #[test]
+        fn should_not_transition_if_timer_is_disabled() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            pomodoro.alarm_disable();
+
+            pomodoro.focus.current_time = Duration::from_secs(1);
+            pomodoro.forward();
+            assert_eq!(pomodoro.timer, TimerType::Rest);
+
+            pomodoro.rest.current_time = Duration::from_secs(1);
+            pomodoro.forward();
+            assert_eq!(pomodoro.timer, TimerType::Focus);
+        }
+
+        #[should_panic]
+        #[test]
+        fn should_crash_if_is_transitioning_to_anoter_transition() {
+            std::env::set_var("ENV", "TEST");
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            pomodoro.timer = TimerType::Transitioning(Box::new(TimerType::Transitioning(
+                Box::new(TimerType::Focus),
+            )));
+            pomodoro.forward();
+        }
     }
 }
