@@ -298,4 +298,17 @@ mod test {
             pomodoro.forward();
         }
     }
+
+    mod alarm_disable {
+        use super::*;
+
+        #[test]
+        fn should_set_play_sound_alarm_to_false() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            assert_eq!(pomodoro.play_sound_alarm, true);
+
+            pomodoro.alarm_disable();
+            assert_eq!(pomodoro.play_sound_alarm, false);
+        }
+    }
 }
