@@ -311,4 +311,27 @@ mod test {
             assert_eq!(pomodoro.play_sound_alarm, false);
         }
     }
+
+    mod next_mode {
+        use super::*;
+
+        #[test]
+        fn should_move_to_another_timer() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            assert_eq!(pomodoro.timer, TimerType::Focus);
+            pomodoro.next_mode();
+            assert_eq!(pomodoro.timer, TimerType::Rest);
+            pomodoro.next_mode();
+            assert_eq!(pomodoro.timer, TimerType::Focus);
+        }
+
+        #[should_panic]
+        #[test]
+        fn should_crash_if_in_transitioning() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            pomodoro.timer = TimerType::Transitioning(Box::new(TimerType::Focus));
+            pomodoro.next_mode();
+        }
+    }
 }
