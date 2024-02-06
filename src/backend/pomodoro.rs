@@ -334,4 +334,33 @@ mod test {
             pomodoro.next_mode();
         }
     }
+
+    mod reset_timer {
+        use super::*;
+
+        #[test]
+        fn should_reset_by_the_timer_type() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            pomodoro.forward();
+            assert_ne!(pomodoro.focus.current_time, pomodoro.focus.initial_time);
+            pomodoro.reset_timer(TimerType::Focus);
+            assert_eq!(pomodoro.focus.current_time, pomodoro.focus.initial_time);
+
+            pomodoro.next_mode();
+            assert_eq!(pomodoro.timer, TimerType::Rest);
+            pomodoro.forward();
+            assert_ne!(pomodoro.rest.current_time, pomodoro.rest.initial_time);
+            pomodoro.reset_timer(TimerType::Rest);
+            assert_eq!(pomodoro.rest.current_time, pomodoro.rest.initial_time);
+        }
+
+        #[should_panic]
+        #[test]
+        fn should_crash_if_is_resetting_a_transition() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            pomodoro.reset_timer(TimerType::Transitioning(Box::new(TimerType::Focus)));
+        }
+    }
 }
