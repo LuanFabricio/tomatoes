@@ -35,11 +35,11 @@ impl Pomodoro {
         Ok(())
     }
 
+    const ONE_SEC: Duration = Duration::from_secs(1);
     pub fn forward(&mut self) -> Duration {
-        let one_sec = Duration::from_secs(1);
         match &self.timer {
             TimerType::Focus => {
-                self.focus.current_time -= one_sec;
+                self.focus.current_time -= Self::ONE_SEC;
 
                 if self.focus.current_time == Duration::ZERO {
                     let mut new_timer = TimerType::Rest;
@@ -52,7 +52,7 @@ impl Pomodoro {
                 self.focus.current_time
             }
             TimerType::Rest => {
-                self.rest.current_time -= one_sec;
+                self.rest.current_time -= Self::ONE_SEC;
 
                 if self.rest.current_time == Duration::ZERO {
                     let mut new_timer = TimerType::Focus;
