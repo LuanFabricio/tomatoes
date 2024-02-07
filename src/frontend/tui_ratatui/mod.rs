@@ -18,7 +18,7 @@ use ratatui::{
 
 use crate::backend::{Pomodoro, Task};
 
-const COL_SIZE: usize = 2;
+const COL_SIZE: usize = 3;
 
 #[derive(Debug, PartialEq, Eq)]
 enum Area {
@@ -114,10 +114,8 @@ impl TuiRatatuiDisplay {
         height: u16,
         selected_col: usize,
     ) -> Paragraph<'a> {
-        let mut styles = vec![
-            Style::default().bg(Color::Gray),
-            Style::default().bg(Color::Gray),
-        ];
+        let mut styles = vec![Style::default().bg(Color::Gray)];
+        styles = styles.repeat(COL_SIZE);
         styles[selected_col] = styles[selected_col].fg(Color::Red);
 
         let pomo_string = pomodoro.get_current_timer().to_string();
@@ -126,6 +124,7 @@ impl TuiRatatuiDisplay {
             vec![
                 Span::styled("⏵⏸︎ ", styles[0]),
                 Span::styled("⏭ ", styles[1]),
+                Span::styled("🗘 ", styles[2]),
             ]
             .into(),
         ];
@@ -279,6 +278,9 @@ impl TuiRatatuiDisplay {
                                     1 => {
                                         self.pomodoro.next_mode();
                                     }
+                                    2 => {
+                                        self.pomodoro.reset_timer(self.pomodoro.get_mode());
+                                    }
                                     _ => {}
                                 }
                                 // self.pause = !self.pause;
@@ -392,6 +394,7 @@ impl TuiRatatuiDisplay {
                         _ => {}
                     },
                     // TODO: Add task remove feature
+                    // TODO: Add task copy feature.
                     _ => {}
                 }
             }
