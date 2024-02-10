@@ -132,6 +132,15 @@ impl Pomodoro {
         self.tasks.remove(task_index)
     }
 
+    pub fn task_remove_by_attributes(&mut self, task: Task) {
+        for (idx, t) in self.tasks.iter().enumerate() {
+            if t == &task {
+                self.tasks.remove(idx);
+                break;
+            }
+        }
+    }
+
     pub fn task_complete(&mut self, task_index: usize) {
         for (i, task) in self.tasks.iter_mut().filter(|x| !x.completed).enumerate() {
             if i == task_index {
@@ -360,6 +369,22 @@ mod test {
             let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
 
             pomodoro.reset_timer(TimerType::Transitioning(Box::new(TimerType::Focus)));
+        }
+    }
+
+    mod task_remove_by_attributes {
+        use super::*;
+
+        #[test]
+        fn should_delete_by_task_attributes() {
+            let task = Task::new("Name1", "Description1");
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            pomodoro.task_add(task.clone());
+
+            assert_eq!(pomodoro.tasks.len(), 1);
+            pomodoro.task_remove_by_attributes(task);
+            assert_eq!(pomodoro.tasks.len(), 0);
         }
     }
 }
