@@ -50,6 +50,13 @@ impl Timer {
         self.current_time = self.initial_time.clone();
         self.extra_time = Duration::ZERO;
     }
+
+    pub fn transfer_extra_timer_to(&self, t: &mut Timer) {
+        let converted_secs = self.extra_time.as_secs_f64() / self.initial_time.as_secs_f64();
+        t.reset();
+        let t_secs = t.initial_time.as_secs_f64() * (1_f64 + converted_secs);
+        t.current_time = Duration::from_secs(t_secs.round() as u64);
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -160,6 +167,23 @@ mod test {
                 timer.reset();
                 assert_eq!(timer.extra_time, Duration::ZERO);
                 assert_eq!(timer.current_time, timer.initial_time);
+            }
+        }
+
+        mod transfer_extra_timer_to {
+            use super::*;
+
+            #[test]
+            fn should_transfer_extra_timer_to_anoter_timer() {
+                const INITIAL_TIMER1: u64 = 60;
+                let mut timer1 = Timer::new(Duration::from_secs(INITIAL_TIMER1));
+                timer1.extra_time = Duration::from_secs(INITIAL_TIMER1); // 2x to next timer;
+
+                const INITIAL_TIMER2: u64 = 42;
+                let mut timer2 = Timer::new(Duration::from_secs(INITIAL_TIMER2));
+
+                timer1.transfer_extra_timer_to(&mut timer2);
+                assert_eq!(timer2.current_time, timer2.initial_time * 2);
             }
         }
     }
