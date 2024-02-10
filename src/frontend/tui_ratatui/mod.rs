@@ -409,7 +409,7 @@ impl TuiRatatuiDisplay {
                         }
                         _ => {}
                     },
-                    // TODO: Add task copy feature.
+                    // TODO: Add task remove feature.
                     _ => {}
                 }
             }
