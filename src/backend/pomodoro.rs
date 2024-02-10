@@ -12,6 +12,7 @@ pub struct Pomodoro {
     tasks: Vec<Task>,
     timer: TimerType,
     play_sound_alarm: bool,
+    timer_extend: bool,
 }
 
 impl Pomodoro {
@@ -22,6 +23,7 @@ impl Pomodoro {
             tasks: vec![],
             timer: TimerType::Focus,
             play_sound_alarm: true,
+            timer_extend: true,
         }
     }
 
@@ -35,32 +37,32 @@ impl Pomodoro {
         Ok(())
     }
 
-    const ONE_SEC: Duration = Duration::from_secs(1);
     pub fn forward(&mut self) -> Duration {
         match &self.timer {
             TimerType::Focus => {
-                self.focus.current_time -= Self::ONE_SEC;
+                self.focus.forward();
 
-                if self.focus.current_time == Duration::ZERO {
+                if self.focus.current_time.is_zero() && !self.timer_extend {
                     let mut new_timer = TimerType::Rest;
                     if self.play_sound_alarm {
                         new_timer = TimerType::Transitioning(Box::new(new_timer));
                     }
                     self.timer = new_timer;
-                    self.focus.current_time = self.focus.initial_time
+                    self.focus.reset();
                 }
+
                 self.focus.current_time
             }
             TimerType::Rest => {
-                self.rest.current_time -= Self::ONE_SEC;
+                self.rest.forward();
 
-                if self.rest.current_time == Duration::ZERO {
+                if self.rest.current_time.is_zero() && !self.timer_extend {
                     let mut new_timer = TimerType::Focus;
                     if self.play_sound_alarm {
                         new_timer = TimerType::Transitioning(Box::new(new_timer));
                     }
                     self.timer = new_timer;
-                    self.rest.current_time = self.rest.initial_time
+                    self.rest.reset();
                 }
                 self.rest.current_time
             }
@@ -97,12 +99,16 @@ impl Pomodoro {
 
     pub fn next_mode(&mut self) {
         self.reset_timer(self.timer.clone());
+
+        // TODO: Transfer extra time to next mode.
         match &self.timer {
             TimerType::Focus => {
                 self.timer = TimerType::Rest;
+                self.focus.reset();
             }
             TimerType::Rest => {
                 self.timer = TimerType::Focus;
+                self.rest.reset();
             }
             TimerType::Transitioning(_) => {
                 unreachable!()
@@ -236,6 +242,21 @@ mod test {
         use super::*;
 
         #[test]
+        fn should_use_extra_time_mode() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            pomodoro.timer_extend = true;
+            pomodoro.timer = TimerType::Focus;
+
+            for _ in 0..FOCUS_TIME.as_secs() + 1 {
+                pomodoro.forward();
+            }
+
+            assert_eq!(pomodoro.timer, TimerType::Focus);
+            assert!(pomodoro.focus.current_time.is_zero());
+            assert_eq!(pomodoro.focus.extra_time, Duration::from_secs(1));
+        }
+
+        #[test]
         fn should_advance_current_time_one_second_by_timer_type() {
             let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
 
@@ -253,6 +274,8 @@ mod test {
         #[test]
         fn should_reset_timer_when_is_done() {
             let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            // Disable timer extend mode
+            pomodoro.timer_extend = false;
             // Disable alarm transition.
             pomodoro.alarm_disable();
 
@@ -283,6 +306,7 @@ mod test {
         #[test]
         fn should_not_transition_if_timer_is_disabled() {
             let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+            pomodoro.timer_extend = false;
             pomodoro.alarm_disable();
 
             pomodoro.focus.current_time = Duration::from_secs(1);
