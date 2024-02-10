@@ -6,12 +6,14 @@ use std::time::Duration;
 pub struct Timer {
     pub current_time: Duration,
     pub initial_time: Duration,
+    pub extra_time: Duration,
 }
 
 impl Timer {
     pub fn new(initial_time: Duration) -> Self {
         Self {
             current_time: initial_time,
+            extra_time: Duration::ZERO,
             initial_time,
         }
     }
@@ -22,7 +24,31 @@ impl Timer {
         let secs = duration.as_secs() % 60;
         let mins = (duration.as_secs_f32() - (secs as f32)) / 60f32;
 
-        format!("{:02}:{:02}", mins, secs)
+        let mut r = format!("{:02}:{:02}", mins, secs);
+
+        if self.current_time.is_zero() {
+            let duration = self.extra_time;
+
+            let secs = duration.as_secs() % 60;
+            let mins = (duration.as_secs_f32() - (secs as f32)) / 60f32;
+            r += format!("(+{:02}:{:02})", mins, secs).as_str();
+        }
+
+        r
+    }
+
+    const TIME_DECREASE: Duration = Duration::from_secs(1);
+    pub fn forward(&mut self) {
+        if self.current_time.is_zero() {
+            self.extra_time += Self::TIME_DECREASE;
+        } else {
+            self.current_time -= Self::TIME_DECREASE;
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.current_time = self.initial_time.clone();
+        self.extra_time = Duration::ZERO;
     }
 }
 
@@ -73,14 +99,67 @@ mod test {
         mod to_string {
             use super::*;
 
+            const SECONDS: u64 = 64;
             #[test]
             fn should_format_to_string_as_min_secs() {
-                const SECONDS: u64 = 64;
                 let timer = Timer::new(Duration::from_secs(SECONDS));
 
                 let expected_formatted = format!("{:02}:{:02}", SECONDS / 60, SECONDS % 60);
 
                 assert_eq!(timer.to_string(), expected_formatted);
+            }
+
+            #[test]
+            fn should_show_extra_time_if_have_one() {
+                let mut timer = Timer::new(Duration::from_secs(SECONDS));
+
+                // Simulating time advance
+                for _ in 0..SECONDS + 5 {
+                    timer.forward();
+                }
+
+                let expecpted_formatted = format!(
+                    "{:02}:{:02}(+{:02}:{:02})",
+                    timer.current_time.as_secs() / 60,
+                    timer.current_time.as_secs() % 60,
+                    timer.extra_time.as_secs() / 60,
+                    timer.extra_time.as_secs() % 60,
+                );
+
+                assert_eq!(timer.to_string(), expecpted_formatted);
+            }
+        }
+
+        mod forward {
+            use super::*;
+
+            #[test]
+            fn should_get_current_and_initial_time_difference() {
+                let mut timer = Timer::new(Duration::from_secs(5));
+                for _ in 0..10 {
+                    timer.forward();
+                }
+
+                assert_eq!(timer.extra_time, Duration::from_secs(5));
+            }
+        }
+
+        mod reset {
+            use super::*;
+
+            #[test]
+            fn should_set_current_equals_initial_time_and_zero_to_extra_time() {
+                let mut timer = Timer::new(Duration::from_secs(5));
+                for _ in 0..10 {
+                    timer.forward();
+                }
+
+                assert_ne!(timer.extra_time, Duration::ZERO);
+                assert_ne!(timer.current_time, timer.initial_time);
+
+                timer.reset();
+                assert_eq!(timer.extra_time, Duration::ZERO);
+                assert_eq!(timer.current_time, timer.initial_time);
             }
         }
     }
