@@ -100,14 +100,15 @@ impl Pomodoro {
     pub fn next_mode(&mut self) {
         self.reset_timer(self.timer.clone());
 
-        // TODO: Transfer extra time to next mode.
         match &self.timer {
             TimerType::Focus => {
                 self.timer = TimerType::Rest;
+                self.focus.transfer_extra_timer_to(&mut self.rest);
                 self.focus.reset();
             }
             TimerType::Rest => {
                 self.timer = TimerType::Focus;
+                self.rest.transfer_extra_timer_to(&mut self.focus);
                 self.rest.reset();
             }
             TimerType::Transitioning(_) => {
@@ -356,6 +357,20 @@ mod test {
             assert_eq!(pomodoro.timer, TimerType::Rest);
             pomodoro.next_mode();
             assert_eq!(pomodoro.timer, TimerType::Focus);
+        }
+
+        #[test]
+        fn should_transfer_extra_timer_to_next_timer() {
+            let mut pomodoro = Pomodoro::new(FOCUS_TIME, REST_TIME);
+
+            assert_eq!(pomodoro.timer, TimerType::Focus);
+            pomodoro.focus.extra_time = pomodoro.focus.initial_time; // 2x next timer
+            pomodoro.next_mode();
+            assert_eq!(pomodoro.timer, TimerType::Rest);
+            assert_eq!(pomodoro.rest.current_time, pomodoro.rest.initial_time * 2);
+            pomodoro.next_mode();
+            assert_eq!(pomodoro.timer, TimerType::Focus);
+            assert_eq!(pomodoro.focus.current_time, pomodoro.focus.initial_time);
         }
 
         #[should_panic]
