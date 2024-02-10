@@ -39,7 +39,6 @@ pub struct TuiRatatuiDisplay {
     space_timeout: SystemTime,
     new_task_buffer: String,
     autopause: bool,
-    // TODO: Add a autopause mode option.
 }
 
 impl TuiRatatuiDisplay {
@@ -446,7 +445,6 @@ impl TuiRatatuiDisplay {
                         }
                         _ => {}
                     },
-                    // TODO: Add task remove feature.
                     _ => {}
                 }
             }
