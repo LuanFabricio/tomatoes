@@ -367,6 +367,22 @@ impl TuiRatatuiDisplay {
                         Area::TaskAdd => {}
                         _ => self.current_area = Area::TaskAdd,
                     },
+                    (KeyCode::Char('c'), KeyEventKind::Press) => match self.current_area {
+                        Area::TaskAdd => self.new_task_buffer += "c",
+                        Area::TasksCompleted => {
+                            let mut copy_task =
+                                self.pomodoro.task_get_by_complete(true)[self.selected_row].clone();
+                            copy_task.completed = false;
+                            self.pomodoro.task_add(copy_task);
+                        }
+                        Area::TasksNotCompleted => {
+                            let copy_task = self.pomodoro.task_get_by_complete(false)
+                                [self.selected_row]
+                                .clone();
+                            self.pomodoro.task_add(copy_task);
+                        }
+                        _ => {}
+                    },
                     (KeyCode::Char(c), KeyEventKind::Press) => match self.current_area {
                         Area::TaskAdd => {
                             self.new_task_buffer += c.to_string().as_str();
@@ -393,7 +409,6 @@ impl TuiRatatuiDisplay {
                         }
                         _ => {}
                     },
-                    // TODO: Add task remove feature
                     // TODO: Add task copy feature.
                     _ => {}
                 }
