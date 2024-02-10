@@ -181,7 +181,6 @@ impl Pomodoro {
     }
 
     // TODO: Add a extend mode option.
-    // TODO: Add a autopause mode option.
 }
 
 #[cfg(test)]

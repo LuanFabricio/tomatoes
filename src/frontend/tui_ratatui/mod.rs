@@ -16,7 +16,7 @@ use ratatui::{
     Terminal,
 };
 
-use crate::backend::{Pomodoro, Task};
+use crate::backend::{Pomodoro, Task, TimerType};
 
 const COL_SIZE: usize = 3;
 
@@ -38,6 +38,8 @@ pub struct TuiRatatuiDisplay {
     pause: bool,
     space_timeout: SystemTime,
     new_task_buffer: String,
+    autopause: bool,
+    // TODO: Add a autopause mode option.
 }
 
 impl TuiRatatuiDisplay {
@@ -53,6 +55,7 @@ impl TuiRatatuiDisplay {
             selected_col: 0,
             space_timeout: SystemTime::now(),
             new_task_buffer: String::new(),
+            autopause: true,
         })
     }
 
@@ -231,9 +234,25 @@ impl TuiRatatuiDisplay {
         let mut next_count = SystemTime::now();
         let one_sec = Duration::from_secs(1);
         while !self.should_close {
+            let prev_timer = self.pomodoro.get_mode();
             if !self.pause && next_count.elapsed().unwrap() > one_sec {
                 self.pomodoro.forward();
                 next_count = SystemTime::now();
+            }
+
+            // NOTE: Improve later.
+            if self.autopause {
+                let current_timer = self.pomodoro.get_mode();
+                if prev_timer != current_timer {
+                    self.pause = true;
+                } else {
+                    match current_timer {
+                        TimerType::Transitioning(_) => {
+                            self.pomodoro.forward();
+                        }
+                        _ => {}
+                    }
+                }
             }
 
             let _ = self.display();
@@ -277,6 +296,9 @@ impl TuiRatatuiDisplay {
                                     }
                                     1 => {
                                         self.pomodoro.next_mode();
+                                        if self.autopause {
+                                            self.pause = true;
+                                        }
                                     }
                                     2 => {
                                         self.pomodoro.reset_timer(self.pomodoro.get_mode());
